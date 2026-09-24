@@ -549,7 +549,7 @@ export const dictionary = {
       course: "الدورة",
       selectCourse: "اختر الدورة",
     },
-    home: {
+    supervisorHome: {
       welcome: "أهلًا بك،",
       subtitle: "نظرة عامة على القنوات اللي بتشرف عليها",
       myChannels: "قنواتي",
@@ -1296,7 +1296,7 @@ export const dictionary = {
       course: "Course",
       selectCourse: "Select a course",
     },
-    home: {
+    supervisorHome: {
       welcome: "Welcome,",
       subtitle: "Overview of the channels you supervise",
       myChannels: "My Channels",

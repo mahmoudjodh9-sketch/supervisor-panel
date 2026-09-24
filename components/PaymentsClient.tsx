@@ -336,6 +336,7 @@ function AddPaymentModal({
         studentUsername: username.trim(),
         courseId,
         courseTitle: course?.title ?? "",
+        channelId: course?.channelId ?? null,
         channelName: course?.channelName ?? null,
         status: "pending",
         note: note.trim() || null,

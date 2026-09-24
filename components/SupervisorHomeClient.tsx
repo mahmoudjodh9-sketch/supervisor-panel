@@ -25,9 +25,9 @@ export function SupervisorHomeClient({
         <div>
           <h1 className="text-2xl font-bold accent-gradient-text flex items-center gap-2">
             <Home size={22} className="text-[var(--ice-300)]" />
-            {t.home.welcome} {supervisorName}
+            {t.supervisorHome.welcome} {supervisorName}
           </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">{t.home.subtitle}</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">{t.supervisorHome.subtitle}</p>
         </div>
 
         {/* Overview totals */}
@@ -38,7 +38,7 @@ export function SupervisorHomeClient({
             </span>
             <div>
               <p className="text-xl font-bold">{channels.length}</p>
-              <p className="text-xs text-[var(--text-muted)]">{t.home.myChannels}</p>
+              <p className="text-xs text-[var(--text-muted)]">{t.supervisorHome.myChannels}</p>
             </div>
           </div>
           <div className="glass-panel rounded-2xl p-4 flex items-center gap-3">
@@ -47,7 +47,7 @@ export function SupervisorHomeClient({
             </span>
             <div>
               <p className="text-xl font-bold">{totalCourses}</p>
-              <p className="text-xs text-[var(--text-muted)]">{t.home.totalCourses}</p>
+              <p className="text-xs text-[var(--text-muted)]">{t.supervisorHome.totalCourses}</p>
             </div>
           </div>
           <div className="glass-panel rounded-2xl p-4 flex items-center gap-3">
@@ -56,16 +56,16 @@ export function SupervisorHomeClient({
             </span>
             <div>
               <p className="text-xl font-bold">{totalStudents}</p>
-              <p className="text-xs text-[var(--text-muted)]">{t.home.totalStudents}</p>
+              <p className="text-xs text-[var(--text-muted)]">{t.supervisorHome.totalStudents}</p>
             </div>
           </div>
         </div>
 
         {/* Per-channel cards */}
         <div>
-          <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-2">{t.home.myChannels}</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-secondary)] mb-2">{t.supervisorHome.myChannels}</h2>
           {channels.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">{t.home.noChannels}</p>
+            <p className="text-sm text-[var(--text-muted)]">{t.supervisorHome.noChannels}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {channels.map((c) => (
@@ -100,11 +100,11 @@ export function SupervisorHomeClient({
                   <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
                     <span className="flex items-center gap-1">
                       <BookOpen size={13} />
-                      {c.courseCount} {t.home.coursesUnit}
+                      {c.courseCount} {t.supervisorHome.coursesUnit}
                     </span>
                     <span className="flex items-center gap-1">
                       <Users size={13} />
-                      {c.studentCount} {t.home.studentsUnit}
+                      {c.studentCount} {t.supervisorHome.studentsUnit}
                     </span>
                   </div>
                 </button>
