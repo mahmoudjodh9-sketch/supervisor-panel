@@ -1,9 +1,13 @@
-import { Layers, type LucideIcon } from "lucide-react";
+import { Home, Layers, CreditCard, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
-  key: "content";
+  key: "home" | "content" | "payments";
   href: string;
   icon: LucideIcon;
 }
 
-export const navItems: NavItem[] = [{ key: "content", href: "/content", icon: Layers }];
+export const navItems: NavItem[] = [
+  { key: "home", href: "/", icon: Home },
+  { key: "content", href: "/content", icon: Layers },
+  { key: "payments", href: "/payments", icon: CreditCard },
+];

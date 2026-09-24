@@ -17,7 +17,7 @@ export default function LoginPage() {
     startTransition(async () => {
       const result = await supervisorLoginAction(username, password);
       if (result.success) {
-        router.push("/content");
+        router.push("/");
         router.refresh();
       } else {
         setError("اسم المستخدم أو كلمة المرور غير صحيحة");

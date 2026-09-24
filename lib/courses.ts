@@ -75,7 +75,9 @@ export async function getCourses(): Promise<{ courses: CourseRow[]; error: strin
 export interface SimpleCourseOption {
   id: string;
   title: string;
+  channelId: string | null;
   channelName: string | null;
+  levelNumber: number | null;
 }
 
 export async function getChannelOptionsForCourses(): Promise<ChannelOptionForCourse[]> {
@@ -91,16 +93,22 @@ export async function getChannelOptionsForCourses(): Promise<ChannelOptionForCou
 export async function getSimpleCourseOptions(): Promise<SimpleCourseOption[]> {
   const supabase = createServerClient();
   const [{ data: courses }, { data: channels }] = await Promise.all([
-    // Free courses are already open to everyone — only paid courses need manual activation
-    supabase.from("courses").select("id, title, channel_id").eq("is_free", false).order("title"),
-    supabase.from("channels").select("id, name"),
+    supabase.from("courses").select("id, title, channel_id").order("title"),
+    supabase.from("channels").select("id, name, level_number"),
   ]);
 
-  const channelNameById = new Map((channels ?? []).map((c) => [c.id, c.name]));
+  const channelById = new Map(
+    (channels ?? []).map((c) => [c.id, { name: c.name, levelNumber: c.level_number as number }])
+  );
 
-  return (courses ?? []).map((c) => ({
-    id: c.id,
-    title: c.title,
-    channelName: c.channel_id ? channelNameById.get(c.channel_id) ?? null : null,
-  }));
+  return (courses ?? []).map((c) => {
+    const channel = c.channel_id ? channelById.get(c.channel_id) : undefined;
+    return {
+      id: c.id,
+      title: c.title,
+      channelId: c.channel_id,
+      channelName: channel?.name ?? null,
+      levelNumber: channel?.levelNumber ?? null,
+    };
+  });
 }

@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { getChannels, type ChannelRow } from "@/lib/channels";
+import { getSimpleCourseOptions, type SimpleCourseOption } from "@/lib/courses";
 
 /** All channels assigned to this supervisor (across all levels). */
 export async function getMyChannels(
@@ -14,6 +15,16 @@ export async function getMyChannels(
 export async function getMyLevels(supervisorId: string): Promise<number[]> {
   const { channels } = await getMyChannels(supervisorId);
   return Array.from(new Set(channels.map((c) => c.levelNumber))).sort((a, b) => a - b);
+}
+
+/** Course options (for the level→channel→course picker) limited to this supervisor's own channels. */
+export async function getMyCourseOptions(supervisorId: string): Promise<SimpleCourseOption[]> {
+  const [allCourses, { channels }] = await Promise.all([
+    getSimpleCourseOptions(),
+    getMyChannels(supervisorId),
+  ]);
+  const myChannelIds = new Set(channels.map((c) => c.id));
+  return allCourses.filter((c) => c.channelId && myChannelIds.has(c.channelId));
 }
 
 /** True if this channel belongs to this supervisor. */
