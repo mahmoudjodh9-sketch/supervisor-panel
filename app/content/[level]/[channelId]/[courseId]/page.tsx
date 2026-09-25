@@ -25,8 +25,12 @@ export default async function CoursePage({
   const [{ lectures, error }, { channelName, courseTitle }, courseRes] = await Promise.all([
     getLecturesForCourse(courseId),
     getBreadcrumbNames({ channelId, courseId }),
-    supabase.from("courses").select("is_free").eq("id", courseId).maybeSingle(),
+    supabase.from("courses").select("is_free, pricing_type").eq("id", courseId).maybeSingle(),
   ]);
+
+  const coursePricingType: "free" | "paid" | "mixed" =
+    (courseRes.data?.pricing_type as "free" | "paid" | "mixed" | undefined) ??
+    (courseRes.data?.is_free ? "free" : "paid");
 
   return (
     <ContentLecturesClient
@@ -35,7 +39,7 @@ export default async function CoursePage({
       channelName={channelName ?? ""}
       courseId={courseId}
       courseTitle={courseTitle ?? ""}
-      courseIsFree={Boolean(courseRes.data?.is_free)}
+      coursePricingType={coursePricingType}
       initialLectures={lectures}
       loadError={error}
     />

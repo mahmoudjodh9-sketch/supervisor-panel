@@ -29,10 +29,11 @@ export async function createCourse(formData: FormData, channelPath: string): Pro
 
   const title = String(formData.get("title") || "").trim();
   const channelId = String(formData.get("channelId") || "").trim() || null;
-  const isFree = formData.get("isFree") === "true";
+  const pricingType = String(formData.get("pricingType") || "paid");
   const icon = String(formData.get("icon") || "book").trim();
   const coverFile = formData.get("cover") as File | null;
 
+  if (!["free", "paid", "mixed"].includes(pricingType)) return { error: "نوع تسعير غير صحيح" };
   if (!title) return { error: "اسم الدورة مطلوب" };
   if (!channelId) return { error: "القناة مطلوبة" };
 
@@ -50,7 +51,7 @@ export async function createCourse(formData: FormData, channelPath: string): Pro
     .insert({
       title,
       channel_id: channelId,
-      is_free: isFree,
+      pricing_type: pricingType,
       icon,
       is_active: true,
       order_index: nextOrderIndex,
@@ -80,17 +81,18 @@ export async function updateCourse(formData: FormData, channelPath: string): Pro
   const id = String(formData.get("id") || "");
   const title = String(formData.get("title") || "").trim();
   const channelId = String(formData.get("channelId") || "").trim() || null;
-  const isFree = formData.get("isFree") === "true";
+  const pricingType = String(formData.get("pricingType") || "paid");
   const icon = String(formData.get("icon") || "book").trim();
   const coverFile = formData.get("cover") as File | null;
 
   if (!id || !title) return { error: "بيانات غير مكتملة" };
   if (!channelId) return { error: "القناة مطلوبة" };
+  if (!["free", "paid", "mixed"].includes(pricingType)) return { error: "نوع تسعير غير صحيح" };
 
   const updatePayload: Record<string, string | boolean | null> = {
     title,
     channel_id: channelId,
-    is_free: isFree,
+    pricing_type: pricingType,
     icon,
   };
 

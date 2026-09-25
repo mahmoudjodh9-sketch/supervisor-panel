@@ -25,7 +25,7 @@ export function ContentLecturesClient({
   channelName,
   courseId,
   courseTitle,
-  courseIsFree,
+  coursePricingType,
   initialLectures,
   loadError,
 }: {
@@ -34,7 +34,7 @@ export function ContentLecturesClient({
   channelName: string;
   courseId: string;
   courseTitle: string;
-  courseIsFree: boolean;
+  coursePricingType: "free" | "paid" | "mixed";
   initialLectures: LectureRow[];
   loadError: string | null;
 }) {
@@ -150,12 +150,14 @@ export function ContentLecturesClient({
                     </span>
                     <span
                       className={`rounded-full px-1.5 py-0.5 font-semibold ${
-                        l.isFree || courseIsFree
+                        (coursePricingType === "mixed" ? l.isFree : coursePricingType === "free")
                           ? "bg-[var(--success)]/15 text-[var(--success)]"
                           : "bg-[var(--ice-300)]/15 text-[var(--ice-300)]"
                       }`}
                     >
-                      {l.isFree || courseIsFree ? t.content.lectures.free : t.content.lectures.paid}
+                      {(coursePricingType === "mixed" ? l.isFree : coursePricingType === "free")
+                        ? t.content.lectures.free
+                        : t.content.lectures.paid}
                     </span>
                     {l.hasQuiz && (
                       <span className="flex items-center gap-0.5 text-[var(--ice-300)]">
@@ -198,6 +200,7 @@ export function ContentLecturesClient({
           editing={editing}
           courseId={courseId}
           coursePath={coursePath}
+          coursePricingType={coursePricingType}
           onClose={() => setModalOpen(false)}
           onSaved={(saved, isNew) => {
             setLectures((prev) =>
@@ -229,19 +232,23 @@ function LectureModal({
   editing,
   courseId,
   coursePath,
+  coursePricingType,
   onClose,
   onSaved,
 }: {
   editing: LectureRow | null;
   courseId: string;
   coursePath: string;
+  coursePricingType: "free" | "paid" | "mixed";
   onClose: () => void;
   onSaved: (l: LectureRow, isNew: boolean) => void;
 }) {
   const { t } = useLocale();
   const [title, setTitle] = useState(editing?.title ?? "");
   const [category, setCategory] = useState<LectureCategory>(editing?.category ?? "شرح");
-  const [isFree, setIsFree] = useState(editing?.isFree ?? false);
+  const [isFree, setIsFree] = useState(
+    coursePricingType === "mixed" ? editing?.isFree ?? false : coursePricingType === "free"
+  );
   const [hasQuiz, setHasQuiz] = useState(editing?.hasQuiz ?? false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -251,12 +258,14 @@ function LectureModal({
     if (!title.trim()) return setError(t.content.lectures.nameRequired);
     setError(null);
 
+    const effectiveIsFree = coursePricingType === "mixed" ? isFree : coursePricingType === "free";
+
     const formData = new FormData();
     if (editing) formData.set("id", editing.id);
     formData.set("courseId", courseId);
     formData.set("title", title.trim());
     formData.set("category", category);
-    formData.set("isFree", String(isFree));
+    formData.set("isFree", String(effectiveIsFree));
     formData.set("hasQuiz", String(hasQuiz));
 
     startTransition(async () => {
@@ -274,7 +283,7 @@ function LectureModal({
           title: title.trim(),
           category,
           orderIndex: editing?.orderIndex ?? 999999,
-          isFree,
+          isFree: effectiveIsFree,
           hasQuiz,
           itemCount: editing?.itemCount ?? 0,
           createdAt: editing?.createdAt ?? new Date().toISOString(),
@@ -340,34 +349,36 @@ function LectureModal({
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[var(--text-muted)]">{t.content.lectures.fieldAccess}</label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setIsFree(false)}
-                className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium border transition ${
-                  !isFree
-                    ? "bg-[var(--ice-300)]/20 border-[var(--ice-300)] text-[var(--ice-300)]"
-                    : "border-[var(--glass-border)] text-[var(--text-secondary)]"
-                }`}
-              >
-                {t.content.lectures.paid}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsFree(true)}
-                className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium border transition ${
-                  isFree
-                    ? "bg-[var(--success)]/20 border-[var(--success)] text-[var(--success)]"
-                    : "border-[var(--glass-border)] text-[var(--text-secondary)]"
-                }`}
-              >
-                {t.content.lectures.free}
-              </button>
+          {coursePricingType === "mixed" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-[var(--text-muted)]">{t.content.lectures.fieldAccess}</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFree(false)}
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium border transition ${
+                    !isFree
+                      ? "bg-[var(--ice-300)]/20 border-[var(--ice-300)] text-[var(--ice-300)]"
+                      : "border-[var(--glass-border)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {t.content.lectures.paid}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFree(true)}
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium border transition ${
+                    isFree
+                      ? "bg-[var(--success)]/20 border-[var(--success)] text-[var(--success)]"
+                      : "border-[var(--glass-border)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {t.content.lectures.free}
+                </button>
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)]">{t.content.lectures.fieldAccessHint}</p>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)]">{t.content.lectures.fieldAccessHint}</p>
-          </div>
+          )}
 
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input

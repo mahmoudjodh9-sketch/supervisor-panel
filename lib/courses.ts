@@ -10,6 +10,7 @@ export interface CourseRow {
   studentCount: number;
   lectureCount: number;
   isFree: boolean;
+  pricingType: "free" | "paid" | "mixed";
   status: "active" | "hidden";
   created_at: string;
   order_index: number;
@@ -27,7 +28,9 @@ export async function getCourses(): Promise<{ courses: CourseRow[]; error: strin
   const [coursesRes, channelsRes, lecturesRes, unlocksRes] = await Promise.all([
     supabase
       .from("courses")
-      .select("id, title, cover_image, icon, is_active, created_at, channel_id, is_free, order_index")
+      .select(
+        "id, title, cover_image, icon, is_active, created_at, channel_id, is_free, pricing_type, order_index"
+      )
       .order("order_index", { ascending: true, nullsFirst: false }),
     supabase.from("channels").select("id, name"),
     supabase.from("lectures").select("course_id"),
@@ -64,6 +67,7 @@ export async function getCourses(): Promise<{ courses: CourseRow[]; error: strin
     studentCount: studentsByCourse.get(c.id)?.size ?? 0,
     lectureCount: lectureCountByCourse.get(c.id) ?? 0,
     isFree: c.is_free,
+    pricingType: (c.pricing_type as "free" | "paid" | "mixed") ?? (c.is_free ? "free" : "paid"),
     status: c.is_active ? "active" : "hidden",
     created_at: c.created_at,
     order_index: c.order_index ?? 0,

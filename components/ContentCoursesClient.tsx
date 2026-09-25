@@ -137,10 +137,18 @@ export function ContentCoursesClient({
                 badge={
                   <span
                     className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                      c.isFree ? "bg-[var(--success)]/80 text-white" : "bg-black/50 text-white"
+                      c.pricingType === "free"
+                        ? "bg-[var(--success)]/80 text-white"
+                        : c.pricingType === "mixed"
+                          ? "bg-[var(--warning,#c9820a)]/80 text-white"
+                          : "bg-black/50 text-white"
                     }`}
                   >
-                    {c.isFree ? t.content.courses.free : t.content.courses.paid}
+                    {c.pricingType === "free"
+                      ? t.content.courses.free
+                      : c.pricingType === "mixed"
+                        ? t.content.courses.mixed
+                        : t.content.courses.paid}
                   </span>
                 }
                 onClick={() => (window.location.href = `${channelPath}/${c.id}`)}
@@ -242,7 +250,9 @@ function CourseModal({
 }) {
   const { t } = useLocale();
   const [title, setTitle] = useState(editing?.title ?? "");
-  const [isFree, setIsFree] = useState(editing?.isFree ?? false);
+  const [pricingType, setPricingType] = useState<"free" | "paid" | "mixed">(
+    editing?.pricingType ?? "paid"
+  );
   const [icon, setIcon] = useState(editing?.icon ?? "book");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(editing?.coverUrl ?? null);
@@ -272,7 +282,7 @@ function CourseModal({
     if (editing) formData.set("id", editing.id);
     formData.set("title", title.trim());
     formData.set("channelId", channelId);
-    formData.set("isFree", String(isFree));
+    formData.set("pricingType", pricingType);
     formData.set("icon", icon);
     if (coverFile) formData.set("cover", coverFile);
 
@@ -294,7 +304,8 @@ function CourseModal({
           channelName: editing?.channelName ?? null,
           studentCount: editing?.studentCount ?? 0,
           lectureCount: editing?.lectureCount ?? 0,
-          isFree,
+          isFree: pricingType === "free",
+          pricingType,
           status: editing?.status ?? "active",
           created_at: editing?.created_at ?? new Date().toISOString(),
           order_index: editing?.order_index ?? 999999,
@@ -397,9 +408,9 @@ function CourseModal({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsFree(false)}
+                  onClick={() => setPricingType("paid")}
                   className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium border transition ${
-                    !isFree
+                    pricingType === "paid"
                       ? "bg-[var(--ice-300)]/20 border-[var(--ice-300)] text-[var(--ice-300)]"
                       : "border-[var(--glass-border)] text-[var(--text-secondary)]"
                   }`}
@@ -408,9 +419,20 @@ function CourseModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsFree(true)}
+                  onClick={() => setPricingType("mixed")}
                   className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium border transition ${
-                    isFree
+                    pricingType === "mixed"
+                      ? "bg-[var(--warning,#c9820a)]/20 border-[var(--warning,#c9820a)] text-[var(--warning,#c9820a)]"
+                      : "border-[var(--glass-border)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {t.content.courses.mixed}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPricingType("free")}
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-medium border transition ${
+                    pricingType === "free"
                       ? "bg-[var(--success)]/20 border-[var(--success)] text-[var(--success)]"
                       : "border-[var(--glass-border)] text-[var(--text-secondary)]"
                   }`}

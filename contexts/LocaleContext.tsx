@@ -606,6 +606,7 @@ export const dictionary = {
         delete: "حذف",
         free: "مجاني",
         paid: "مدفوع",
+        mixed: "مختلط",
         modalAddTitle: "إضافة دورة جديدة",
         modalEditTitle: "تعديل الدورة",
         fieldName: "اسم الدورة",
@@ -660,7 +661,7 @@ export const dictionary = {
         fieldCategory: "نوع المحاضرة",
         fieldAccess: "الإتاحة",
         fieldAccessHint:
-          "لو الدورة نفسها مجانية، المحاضرة تفتح تلقائيًا لأي طالب بغض النظر عن هذا الاختيار.",
+          "الخيار ده بيظهر بس لو نوع الدورة \"مختلط\" — أما الدورة المجانية أو المدفوعة بالكامل فكل محاضراتها بتاخد نفس نوع الدورة تلقائيًا.",
         fieldQuiz: "المحاضرة فيها اختبار (Quiz)",
         deleteConfirmTitle: "تأكيد حذف المحاضرة",
         deleteConfirmBody:
@@ -1353,6 +1354,7 @@ export const dictionary = {
         delete: "Delete",
         free: "Free",
         paid: "Paid",
+        mixed: "Mixed",
         modalAddTitle: "Add New Course",
         modalEditTitle: "Edit Course",
         fieldName: "Course Name",
@@ -1407,7 +1409,7 @@ export const dictionary = {
         fieldCategory: "Lecture Type",
         fieldAccess: "Access",
         fieldAccessHint:
-          "If the course itself is free, the lecture opens automatically for every student regardless of this choice.",
+          "This only appears for \"mixed\" courses — a fully free or fully paid course applies its own type to every lecture automatically.",
         fieldQuiz: "This lecture has a quiz",
         deleteConfirmTitle: "Confirm Lecture Deletion",
         deleteConfirmBody:
