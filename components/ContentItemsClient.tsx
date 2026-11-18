@@ -5,6 +5,7 @@ import {
   Video,
   FileText,
   HelpCircle,
+  BookOpen,
   Plus,
   Pencil,
   Trash2,
@@ -51,6 +52,8 @@ import {
   type QuizLeaderboardEntry,
   type QuizAttemptDetail,
 } from "@/app/content/quiz-actions";
+import { QuestionBankModal } from "@/components/QuestionBankModal";
+import { setLectureHasBank } from "@/app/content/bank-actions";
 import type { LectureItemRow } from "@/lib/content";
 
 export function ContentItemsClient({
@@ -62,6 +65,7 @@ export function ContentItemsClient({
   lectureId,
   lectureTitle,
   hasQuizInitial,
+  hasBankInitial,
   quizSettingsInitial,
   initialItems,
   loadError,
@@ -74,13 +78,16 @@ export function ContentItemsClient({
   lectureId: string;
   lectureTitle: string;
   hasQuizInitial: boolean;
+  hasBankInitial: boolean;
   quizSettingsInitial: QuizSettings;
   initialItems: LectureItemRow[];
   loadError: string | null;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [items, setItems] = useState(initialItems.slice().sort((a, b) => a.orderIndex - b.orderIndex));
   const [hasQuiz, setHasQuiz] = useState(hasQuizInitial);
+  const [hasBank, setHasBank] = useState(hasBankInitial);
+  const [bankOpen, setBankOpen] = useState(false);
   const [pickTypeOpen, setPickTypeOpen] = useState(false);
   const [formState, setFormState] = useState<{ type: "video" | "pdf"; editing: LectureItemRow | null } | null>(
     null
@@ -132,6 +139,18 @@ export function ContentItemsClient({
     }
   }
 
+  function handleAddBankCard() {
+    if (!hasBank) {
+      startTransition(async () => {
+        await setLectureHasBank(lectureId, true, lecturePath);
+        setHasBank(true);
+        setBankOpen(true);
+      });
+    } else {
+      setBankOpen(true);
+    }
+  }
+
   return (
     <AppShell>
       <div className="flex flex-col gap-5">
@@ -156,7 +175,7 @@ export function ContentItemsClient({
           </div>
         )}
 
-        {items.length === 0 && !hasQuiz && (
+        {items.length === 0 && !hasQuiz && !hasBank && (
           <p className="text-sm text-[var(--text-muted)]">{t.content.items.empty}</p>
         )}
 
@@ -221,6 +240,19 @@ export function ContentItemsClient({
             </button>
           )}
 
+          {hasBank && (
+            <button
+              onClick={() => setBankOpen(true)}
+              className="group flex flex-col gap-2 overflow-hidden rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] p-3 hover:border-[var(--ice-300)] transition text-start"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--glass-highlight)] text-[var(--ice-300)]">
+                <BookOpen size={17} />
+              </span>
+              <p className="text-sm font-medium">{locale === "ar" ? "بنك الأسئلة" : "Question Bank"}</p>
+              <p className="text-[11px] text-[var(--text-muted)]">{locale === "ar" ? "إدارة الأسئلة" : "Manage questions"}</p>
+            </button>
+          )}
+
           <AddCard
             label={t.content.channels.addButton === "Add Channel" ? "Add" : "إضافة"}
             onClick={() => setPickTypeOpen(true)}
@@ -231,10 +263,12 @@ export function ContentItemsClient({
       {pickTypeOpen && (
         <PickTypeModal
           hasQuiz={hasQuiz}
+          hasBank={hasBank}
           onClose={() => setPickTypeOpen(false)}
           onPick={(type) => {
             setPickTypeOpen(false);
             if (type === "quiz") handleAddQuizCard();
+            else if (type === "bank") handleAddBankCard();
             else setFormState({ type, editing: null });
           }}
         />
@@ -271,20 +305,35 @@ export function ContentItemsClient({
           }}
         />
       )}
+
+      {bankOpen && (
+        <QuestionBankModal
+          lectureId={lectureId}
+          lecturePath={lecturePath}
+          items={items}
+          onClose={() => setBankOpen(false)}
+          onDeleted={() => {
+            setHasBank(false);
+            setBankOpen(false);
+          }}
+        />
+      )}
     </AppShell>
   );
 }
 
 function PickTypeModal({
   hasQuiz,
+  hasBank,
   onClose,
   onPick,
 }: {
   hasQuiz: boolean;
+  hasBank: boolean;
   onClose: () => void;
-  onPick: (type: "video" | "pdf" | "quiz") => void;
+  onPick: (type: "video" | "pdf" | "quiz" | "bank") => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="glass-panel-strong w-full max-w-sm rounded-2xl p-5">
@@ -297,7 +346,7 @@ function PickTypeModal({
             <X size={18} />
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => onPick("video")}
             className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--glass-border)] py-4 text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--ice-300)] hover:text-[var(--ice-300)] transition"
@@ -319,6 +368,14 @@ function PickTypeModal({
           >
             <HelpCircle size={20} />
             {t.content.items.typeQuiz}
+          </button>
+          <button
+            onClick={() => onPick("bank")}
+            disabled={hasBank}
+            className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--glass-border)] py-4 text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--ice-300)] hover:text-[var(--ice-300)] transition disabled:opacity-40"
+          >
+            <BookOpen size={20} />
+            {locale === "ar" ? "بنك الأسئلة" : "Question Bank"}
           </button>
         </div>
       </div>

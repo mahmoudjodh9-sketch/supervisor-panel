@@ -29,7 +29,7 @@ export default async function LecturePage({
     supabase
       .from("lectures")
       .select(
-        "has_quiz, quiz_mandatory, quiz_question_count, quiz_max_attempts, quiz_duration_minutes, quiz_review_mode, quiz_review_available_at, quiz_review_locked_message, quiz_attempts_exhausted_message"
+        "has_quiz, has_question_bank, quiz_mandatory, quiz_question_count, quiz_max_attempts, quiz_duration_minutes, quiz_review_mode, quiz_review_available_at, quiz_review_locked_message, quiz_attempts_exhausted_message"
       )
       .eq("id", lectureId)
       .maybeSingle(),
@@ -45,6 +45,7 @@ export default async function LecturePage({
       lectureId={lectureId}
       lectureTitle={lectureTitle ?? ""}
       hasQuizInitial={Boolean(lectureRes.data?.has_quiz)}
+      hasBankInitial={Boolean(lectureRes.data?.has_question_bank)}
       quizSettingsInitial={{
         quizQuestionCount: lectureRes.data?.quiz_question_count ?? null,
         quizMaxAttempts: lectureRes.data?.quiz_max_attempts ?? null,
