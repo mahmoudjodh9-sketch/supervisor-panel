@@ -53,6 +53,7 @@ import {
   type QuizAttemptDetail,
 } from "@/app/content/quiz-actions";
 import { QuestionBankModal } from "@/components/QuestionBankModal";
+import { ExtraViewGrants } from "@/components/ExtraViewGrants";
 import { setLectureHasBank } from "@/app/content/bank-actions";
 import type { LectureItemRow } from "@/lib/content";
 
@@ -787,6 +788,11 @@ function ItemFormModal({
               </div>
             </div>
           )}
+
+          {editing &&
+            (type === "video" ? !isUnlimitedViews : !isPdfUnlimitedViews && !isPdfDownloadAllowed) && (
+              <ExtraViewGrants lectureItemId={editing.id} lecturePath={lecturePath} />
+            )}
 
           {formError && <p className="text-xs text-[var(--danger)]">{formError}</p>}
 
