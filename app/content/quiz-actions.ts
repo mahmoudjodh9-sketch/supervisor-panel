@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerClient } from "@/lib/supabase/server";
+import { randomUUID } from "crypto";
 
 type ActionResult = { error: string | null };
 
@@ -20,6 +21,10 @@ export interface QuizQuestionRow {
   type: QuizQuestionType;
   orderIndex: number;
   options: QuizOptionRow[];
+  explanation: string | null;
+  requirement: string | null;
+  groupId: string | null;
+  groupOrder: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -416,7 +421,7 @@ export async function fetchQuizQuestions(
   const [questionsRes, optionsRes] = await Promise.all([
     supabase
       .from("quiz_questions")
-      .select("id, question_text, type, order_index")
+      .select("id, question_text, type, order_index, explanation, requirement, group_id, group_order")
       .eq("lecture_id", lectureId)
       .eq("is_archived", false)
       .order("order_index", { ascending: true, nullsFirst: false }),
@@ -446,6 +451,10 @@ export async function fetchQuizQuestions(
     questionText: q.question_text,
     type: q.type,
     orderIndex: q.order_index ?? 0,
+    explanation: q.explanation ?? null,
+    requirement: q.requirement ?? null,
+    groupId: q.group_id ?? null,
+    groupOrder: q.group_order ?? 0,
     options: (optionsByQuestion.get(q.id) ?? []).sort((a, b) => a.orderIndex - b.orderIndex),
   }));
 
@@ -461,12 +470,19 @@ interface OptionInput {
   isCorrect: boolean;
 }
 
+export interface QuestionExtras {
+    explanation?: string;
+    requirement?: string;
+    groupId?: string | null;
+  }
+
 export async function createQuizQuestion(
   lectureId: string,
   questionText: string,
   type: QuizQuestionType,
   options: OptionInput[],
-  lecturePath: string
+  lecturePath: string,
+  extras?: QuestionExtras
 ): Promise<ActionResult> {
   const supabase = createServerClient();
 
@@ -474,6 +490,22 @@ export async function createQuizQuestion(
   if (!questionText.trim()) return { error: "نص السؤال مطلوب" };
   if (options.length < 2) return { error: "لازم خيارين على الأقل" };
   if (!options.some((o) => o.isCorrect)) return { error: "لازم تحدد الإجابة الصحيحة" };
+
+  const requirement = extras?.requirement?.trim() ?? "";
+  const groupId = extras?.groupId ?? null;
+  if ((requirement && !groupId) || (!requirement && groupId)) {
+    return { error: "المطلوب واسم المجموعة لازم يتحددوا مع بعض" };
+  }
+  
+  const patch: Record<string, unknown> = {
+    question_text: questionText.trim(),
+    type,
+  };
+  if (extras) {
+    patch.explanation = extras.explanation?.trim() || null;
+    patch.requirement = requirement || null;
+    patch.group_id = groupId;
+  }
 
   const { data: maxRow } = await supabase
     .from("quiz_questions")
@@ -491,6 +523,10 @@ export async function createQuizQuestion(
       question_text: questionText.trim(),
       type,
       order_index: nextOrderIndex,
+      explanation: extras?.explanation?.trim() || null,
+      requirement: requirement || null,
+      group_id: groupId,
+      group_order: nextOrderIndex,
     })
     .select("id")
     .single();
@@ -518,7 +554,8 @@ export async function updateQuizQuestion(
   questionText: string,
   type: QuizQuestionType,
   options: OptionInput[],
-  lecturePath: string
+  lecturePath: string,
+  extras?: QuestionExtras
 ): Promise<ActionResult> {
   const supabase = createServerClient();
 
@@ -527,9 +564,25 @@ export async function updateQuizQuestion(
   if (options.length < 2) return { error: "لازم خيارين على الأقل" };
   if (!options.some((o) => o.isCorrect)) return { error: "لازم تحدد الإجابة الصحيحة" };
 
+  const requirement = extras?.requirement?.trim() ?? "";
+  const groupId = extras?.groupId ?? null;
+  if ((requirement && !groupId) || (!requirement && groupId)) {
+    return { error: "المطلوب واسم المجموعة لازم يتحددوا مع بعض" };
+  }
+
+  const patch: Record<string, unknown> = {
+    question_text: questionText.trim(),
+    type,
+  };
+  if (extras) {
+    patch.explanation = extras.explanation?.trim() || null;
+    patch.requirement = requirement || null;
+    patch.group_id = groupId;
+  }
+
   const { error: qError } = await supabase
     .from("quiz_questions")
-    .update({ question_text: questionText.trim(), type })
+    .update(patch)
     .eq("id", questionId);
   if (qError) return { error: qError.message };
 
@@ -574,6 +627,9 @@ interface SheetRow {
   option_3?: string;
   option_4?: string;
   correct_option?: string | number;
+  explanation?: string;
+  requirement?: string | number;
+  group_id?: string;
 }
 
 export async function uploadQuizSheet(
@@ -603,13 +659,26 @@ export async function uploadQuizSheet(
   if (rows.length === 0) return { error: "لا توجد صفوف في الملف" };
 
   // نتحقق من كل الصفوف الأول قبل ما نكتب أي حاجة في الداتابيز
-  const parsed: { questionText: string; type: QuizQuestionType; options: OptionInput[] }[] = [];
+  const parsed: {
+    questionText: string;
+    type: QuizQuestionType;
+    options: OptionInput[];
+    explanation?: string;
+    requirement?: string;
+    groupLabel?: string;
+  }[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const rowNum = i + 2; // +1 للهيدر +1 لأن الفهرسة بتبدأ من صفر
     const questionText = String(row.question_text || "").trim();
     const rawType = String(row.type || "").trim().toLowerCase();
     if (!questionText) return { error: `صف ${rowNum}: نص السؤال مفقود` };
+    const explanation = String(row.explanation ?? "").trim();
+    const requirement = String(row.requirement ?? "").trim();
+    const groupLabel = String(row.group_id ?? "").trim();
+    if ((requirement && !groupLabel) || (!requirement && groupLabel)) {
+      return { error: `صف ${rowNum}: group_id و requirement لازم يتكتبوا مع بعض` };
+    }
     if (rawType !== "mcq" && rawType !== "true_false") {
       return { error: `صف ${rowNum}: النوع لازم يكون mcq أو true_false` };
     }
@@ -636,7 +705,7 @@ export async function uploadQuizSheet(
       options = rawOptions.map((text, idx) => ({ text, isCorrect: idx + 1 === correctIndex }));
     }
 
-    parsed.push({ questionText, type: rawType as QuizQuestionType, options });
+    parsed.push({ questionText, type: rawType as QuizQuestionType, options, explanation, requirement, groupLabel });
   }
 
   if (replaceExisting) {
@@ -658,14 +727,29 @@ export async function uploadQuizSheet(
     .maybeSingle();
   let nextOrderIndex = (maxRow?.order_index ?? -1) + 1;
 
+  const groupIds = new Map<string, string>();
+  const groupOrders = new Map<string, number>();
+
   for (const q of parsed) {
-    const { data: question, error: qError } = await supabase
+      let groupId: string | null = null;
+      let groupOrder = 0;
+      if (q.groupLabel) {
+        if (!groupIds.has(q.groupLabel)) groupIds.set(q.groupLabel, randomUUID());
+        groupId = groupIds.get(q.groupLabel)!;
+        groupOrder = groupOrders.get(q.groupLabel) ?? 0;
+        groupOrders.set(q.groupLabel, groupOrder + 1);
+      }
+      const { data: question, error: qError } = await supabase
       .from("quiz_questions")
       .insert({
         lecture_id: lectureId,
         question_text: q.questionText,
         type: q.type,
         order_index: nextOrderIndex,
+        explanation: q.explanation || null,
+        requirement: q.requirement || null,
+        group_id: groupId,
+        group_order: groupOrder,
       })
       .select("id")
       .single();

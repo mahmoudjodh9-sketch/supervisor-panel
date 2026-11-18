@@ -861,6 +861,7 @@ function QuizManagerModal({
                 lectureId={lectureId}
                 lecturePath={lecturePath}
                 editing={editingQuestion === "new" ? null : editingQuestion}
+                existingQuestions={questions ?? []}
                 onCancel={() => setEditingQuestion(null)}
                 onSaved={() => {
                   setEditingQuestion(null);
@@ -898,6 +899,9 @@ function QuizManagerModal({
                           <span className="text-[11px] text-[var(--text-muted)]">
                             {q.type === "mcq" ? t.content.quiz.typeMcq : t.content.quiz.typeTrueFalse}
                           </span>
+                          {q.requirement && (
+                            <span className="text-[11px] text-red-400 truncate">{q.requirement}</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
@@ -1418,12 +1422,14 @@ function QuestionForm({
   lectureId,
   lecturePath,
   editing,
+  existingQuestions,
   onCancel,
   onSaved,
 }: {
   lectureId: string;
   lecturePath: string;
   editing: QuizQuestionRow | null;
+  existingQuestions: QuizQuestionRow[];
   onCancel: () => void;
   onSaved: () => void;
 }) {
@@ -1440,6 +1446,22 @@ function QuestionForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [explanation, setExplanation] = useState(editing?.explanation ?? "");
+  const [requirement, setRequirement] = useState(editing?.requirement ?? "");
+  // "none" = مستقل، "new" = مجموعة جديدة، أو id مجموعة موجودة
+  const [groupChoice, setGroupChoice] = useState<string>(editing?.groupId ?? "none");
+
+  const groups = Array.from(
+    existingQuestions
+      .filter((q) => q.groupId)
+      .reduce((m, q) => {
+        const g = m.get(q.groupId!) ?? { id: q.groupId!, stem: q.questionText, count: 0 };
+        g.count += 1;
+        m.set(q.groupId!, g);
+        return m;
+      }, new Map<string, { id: string; stem: string; count: number }>())
+      .values()
+  );
 
   function handleTypeChange(next: QuizQuestionType) {
     setType(next);
@@ -1480,12 +1502,19 @@ function QuestionForm({
     const cleanOptions = options.filter((o) => o.text.trim().length > 0);
     if (cleanOptions.length < 2) return setError(t.content.quiz.optionsRequired);
     if (!cleanOptions.some((o) => o.isCorrect)) return setError(t.content.quiz.correctRequired);
+    const isGrouped = groupChoice !== "none";
+    if (isGrouped && !requirement.trim()) return setError("اكتب المطلوب لهذا السؤال");
+    const extras = {
+      explanation: explanation.trim(),
+      requirement: isGrouped ? requirement.trim() : "",
+      groupId: isGrouped ? (groupChoice === "new" ? crypto.randomUUID() : groupChoice) : null,
+    };
     setError(null);
 
     startTransition(async () => {
       const res = editing
-        ? await updateQuizQuestion(editing.id, questionText.trim(), type, cleanOptions, lecturePath)
-        : await createQuizQuestion(lectureId, questionText.trim(), type, cleanOptions, lecturePath);
+        ? await updateQuizQuestion(editing.id, questionText.trim(), type, cleanOptions, lecturePath, extras)
+        : await createQuizQuestion(lectureId, questionText.trim(), type, cleanOptions, lecturePath, extras);
       if (res.error) {
         setError(res.error);
         return;
@@ -1571,6 +1600,44 @@ function QuestionForm({
             {t.content.quiz.addOption}
           </button>
         )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <select
+          value={groupChoice}
+          onChange={(e) => {
+            const v = e.target.value;
+            setGroupChoice(v);
+            if (v !== "none" && v !== "new" && !questionText.trim()) {
+              const g = groups.find((x) => x.id === v);
+              if (g) setQuestionText(g.stem);
+            }
+          }}
+          className="rounded-lg bg-[var(--glass-highlight)] border border-[var(--glass-border)] px-3 py-2 text-sm outline-none focus:border-[var(--ice-300)] transition"
+        >
+          <option value="none">سؤال مستقل (بدون مجموعة)</option>
+          <option value="new">سؤال كبير جديد (مجموعة جديدة)</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {`مجموعة: ${g.stem.slice(0, 40)} (${g.count})`}
+            </option>
+          ))}
+        </select>
+        {groupChoice !== "none" && (
+          <input
+            value={requirement}
+            onChange={(e) => setRequirement(e.target.value)}
+            placeholder="المطلوب (يظهر بالأحمر للطالب)"
+            className="rounded-lg bg-[var(--glass-highlight)] border border-[var(--glass-border)] px-3 py-2 text-sm text-red-400 outline-none focus:border-red-400 transition"
+          />
+        )}
+        <textarea
+          value={explanation}
+          onChange={(e) => setExplanation(e.target.value)}
+          placeholder="التعليل (اختياري، يظهر في مراجعة الاختبار)"
+          rows={2}
+          className="rounded-lg bg-[var(--glass-highlight)] border border-[var(--glass-border)] px-3 py-2 text-sm outline-none focus:border-[var(--ice-300)] transition resize-none"
+        />
       </div>
 
       {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
