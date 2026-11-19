@@ -17,7 +17,9 @@ const TXT = {
     nameLabel: "اسم الريكورد",
     fileLabel: "ملف الصوت",
     chooseFile: "اختار ملف صوت",
-    formats: "الصيغ المدعومة: mp3 و m4a و aac و wav و ogg و opus و webm و flac — حد أقصى 300MB",
+    formats: "الصيغ المدعومة: mp3 و m4a و aac و wav و ogg و opus و flac — حد أقصى 300MB (الأفضل m4a أو mp3)",
+    webmNotSupported:
+      "ملفات webm غير مدعومة (غالبًا بتبقى مسجّلة من المتصفح، والتقديم جوه الريكورد مش بيشتغل معاها). حوّلها لـ m4a أو mp3 وارفعها تاني.",
     nameRequired: "اسم الريكورد مطلوب",
     fileRequired: "اختار ملف الصوت",
     cancel: "إلغاء",
@@ -37,7 +39,9 @@ const TXT = {
     nameLabel: "Recording name",
     fileLabel: "Audio file",
     chooseFile: "Choose an audio file",
-    formats: "Supported: mp3, m4a, aac, wav, ogg, opus, webm, flac — max 300MB",
+    formats: "Supported: mp3, m4a, aac, wav, ogg, opus, flac — max 300MB (m4a or mp3 recommended)",
+    webmNotSupported:
+      "WebM files aren't supported (they're usually browser recordings, and seeking inside them doesn't work). Convert to m4a or mp3 and upload again.",
     nameRequired: "Recording name is required",
     fileRequired: "Choose an audio file",
     cancel: "Cancel",
@@ -56,8 +60,10 @@ const TXT = {
 const ERROR_EN: Record<string, string> = {
   "غير مصرّح": "Not authorized",
   "المحاضرة مطلوبة": "Lecture is required",
-  "نوع الملف غير مدعوم (mp3, m4a, aac, wav, ogg, opus, webm, flac)":
-    "Unsupported file type (mp3, m4a, aac, wav, ogg, opus, webm, flac)",
+  "نوع الملف غير مدعوم (mp3, m4a, aac, wav, ogg, opus, flac)":
+    "Unsupported file type (mp3, m4a, aac, wav, ogg, opus, flac)",
+  "ملفات webm غير مدعومة (التقديم جوه الريكورد مش بيشتغل معاها) — حوّلها لـ m4a أو mp3 وارفعها تاني":
+    "WebM files aren't supported (seeking inside them doesn't work) — convert to m4a or mp3 and upload again",
   "الملف فاضي": "The file is empty",
   "حجم الملف أكبر من 300MB": "The file is larger than 300MB",
   "المحاضرة غير موجودة": "Lecture not found",
@@ -146,6 +152,7 @@ export function RecordingUploadModal({
   async function handleUpload() {
     if (!title.trim()) return setError(b.nameRequired);
     if (!file) return setError(b.fileRequired);
+    if (file.name.toLowerCase().endsWith(".webm")) return setError(b.webmNotSupported);
     setError(null);
     setPhase("uploading");
     setProgress(0);
@@ -238,7 +245,7 @@ export function RecordingUploadModal({
                 {file ? `${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)` : b.chooseFile}
                 <input
                   type="file"
-                  accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.webm,.flac"
+                  accept=".mp3,.m4a,.aac,.wav,.ogg,.opus,.flac,audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/ogg,audio/flac"
                   disabled={busy}
                   className="hidden"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}

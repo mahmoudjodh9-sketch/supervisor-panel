@@ -22,8 +22,8 @@ export const AUDIO_TYPES: Record<string, string> = {
   wav: "audio/wav",
   ogg: "audio/ogg",
   opus: "audio/ogg",
-  webm: "audio/webm",
   flac: "audio/flac",
+  // webm مش مدعوم: ملفات webm المسجّلة من المتصفح مفيهاش فهرس تقديم، فالتقديم جوه الريكورد بيفشل
 };
 
 export function makeR2Client(c: { accountId: string; accessKeyId: string; secretAccessKey: string }) {

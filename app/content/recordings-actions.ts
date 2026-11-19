@@ -45,8 +45,11 @@ export async function createRecordingUpload(
   if (denied) return fail(denied);
 
   const ext = extensionOf(fileName);
+  if (ext === "webm") {
+    return fail("ملفات webm غير مدعومة (التقديم جوه الريكورد مش بيشتغل معاها) — حوّلها لـ m4a أو mp3 وارفعها تاني");
+  }
   const contentType = AUDIO_TYPES[ext];
-  if (!contentType) return fail("نوع الملف غير مدعوم (mp3, m4a, aac, wav, ogg, opus, webm, flac)");
+  if (!contentType) return fail("نوع الملف غير مدعوم (mp3, m4a, aac, wav, ogg, opus, flac)");
   if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return fail("الملف فاضي");
   if (sizeBytes > MAX_RECORDING_BYTES) return fail("حجم الملف أكبر من 300MB");
 
