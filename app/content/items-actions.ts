@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServerClient } from "@/lib/supabase/server";
 import { getLectureItems, type LectureItemRow } from "@/lib/lectures";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { deleteRecordingObject } from "@/lib/recordings-storage";
 
 type ActionResult = { error: string | null; itemId?: string };
 
@@ -155,6 +156,8 @@ export async function updateLectureItem(formData: FormData, lecturePath: string)
 
 export async function deleteLectureItem(id: string, lecturePath: string): Promise<ActionResult> {
   const supabase = createServerClient();
+  // لو العنصر ريكورد صوتي نمسح ملفه من R2 الأول (best-effort)
+  await deleteRecordingObject(id);
   const { error } = await supabase.from("lecture_items").delete().eq("id", id);
   if (error) return { error: error.message };
 

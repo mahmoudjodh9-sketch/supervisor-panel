@@ -6,6 +6,7 @@ import {
   FileText,
   HelpCircle,
   BookOpen,
+  Mic,
   Plus,
   Pencil,
   Trash2,
@@ -54,6 +55,7 @@ import {
 } from "@/app/content/quiz-actions";
 import { QuestionBankModal } from "@/components/QuestionBankModal";
 import { ExtraViewGrants } from "@/components/ExtraViewGrants";
+import { RecordingUploadModal } from "@/components/RecordingUploadModal";
 import { setLectureHasBank } from "@/app/content/bank-actions";
 import type { LectureItemRow } from "@/lib/content";
 
@@ -93,6 +95,7 @@ export function ContentItemsClient({
   const [formState, setFormState] = useState<{ type: "video" | "pdf"; editing: LectureItemRow | null } | null>(
     null
   );
+  const [recordState, setRecordState] = useState<{ editing: LectureItemRow | null } | null>(null);
   const [quizOpen, setQuizOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -188,7 +191,7 @@ export function ContentItemsClient({
             >
               <div className="flex items-center justify-between">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--glass-highlight)] text-[var(--ice-300)]">
-                  {item.type === "video" ? <Video size={17} /> : <FileText size={17} />}
+                  {item.type === "video" ? <Video size={17} /> : item.type === "record" ? <Mic size={17} /> : <FileText size={17} />}
                 </span>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                   <button
@@ -210,7 +213,11 @@ export function ContentItemsClient({
               <p className="text-sm font-medium truncate">{item.title}</p>
               <div className="flex items-center gap-1.5 mt-auto pt-1">
                 <button
-                  onClick={() => setFormState({ type: item.type, editing: item })}
+                  onClick={() =>
+                    item.type === "record"
+                      ? setRecordState({ editing: item })
+                      : setFormState({ type: item.type, editing: item })
+                  }
                   className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-[var(--glass-border)] py-1.5 text-[11px] text-[var(--text-secondary)] hover:border-[var(--ice-300)] hover:text-[var(--ice-300)] transition"
                 >
                   <Pencil size={12} />
@@ -270,6 +277,7 @@ export function ContentItemsClient({
             setPickTypeOpen(false);
             if (type === "quiz") handleAddQuizCard();
             else if (type === "bank") handleAddBankCard();
+            else if (type === "record") setRecordState({ editing: null });
             else setFormState({ type, editing: null });
           }}
         />
@@ -290,6 +298,23 @@ export function ContentItemsClient({
               )
             );
             setFormState(null);
+          }}
+        />
+      )}
+
+      {recordState && (
+        <RecordingUploadModal
+          lectureId={lectureId}
+          lecturePath={lecturePath}
+          editing={recordState.editing}
+          onClose={() => setRecordState(null)}
+          onSaved={(saved, isNew) => {
+            setItems((prev) =>
+              (isNew ? [...prev, saved] : prev.map((i) => (i.id === saved.id ? saved : i))).sort(
+                (a, b) => a.orderIndex - b.orderIndex
+              )
+            );
+            setRecordState(null);
           }}
         />
       )}
@@ -332,7 +357,7 @@ function PickTypeModal({
   hasQuiz: boolean;
   hasBank: boolean;
   onClose: () => void;
-  onPick: (type: "video" | "pdf" | "quiz" | "bank") => void;
+  onPick: (type: "video" | "pdf" | "quiz" | "bank" | "record") => void;
 }) {
   const { t, locale } = useLocale();
   return (
@@ -377,6 +402,13 @@ function PickTypeModal({
           >
             <BookOpen size={20} />
             {locale === "ar" ? "بنك الأسئلة" : "Question Bank"}
+          </button>
+          <button
+            onClick={() => onPick("record")}
+            className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--glass-border)] py-4 text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--ice-300)] hover:text-[var(--ice-300)] transition"
+          >
+            <Mic size={20} />
+            {locale === "ar" ? "ريكورد صوتي" : "Audio recording"}
           </button>
         </div>
       </div>

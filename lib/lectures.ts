@@ -79,7 +79,7 @@ export async function getLecturesForCourse(
   return { lectures, error: null };
 }
 
-export type LectureItemType = "video" | "pdf";
+export type LectureItemType = "video" | "pdf" | "record";
 
 export interface LectureItemRow {
   id: string;
