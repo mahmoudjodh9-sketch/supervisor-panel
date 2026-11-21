@@ -76,6 +76,7 @@ export async function finalizeRecording(
   title: string,
   key: string,
   durationSeconds: number | null,
+  envelope: string | null,
   lecturePath: string
 ): Promise<ActionResult & { itemId?: string }> {
   const denied = await checkLecture(lectureId);
@@ -118,6 +119,10 @@ export async function finalizeRecording(
     .single();
   if (itemError) return { error: itemError.message };
 
+  // بيانات علو الصوت للنيون: base64 بسيط وحجم معقول، وغير كده نتجاهلها (مش بتمنع حفظ الريكورد)
+  const safeEnvelope =
+    envelope && envelope.length <= 400_000 && /^[A-Za-z0-9+/=]+$/.test(envelope) ? envelope : null;
+
   const { error: recError } = await supabase.from("lecture_recordings").insert({
     lecture_item_id: item.id,
     r2_account_id: ctx.r2AccountRowId,
@@ -125,6 +130,8 @@ export async function finalizeRecording(
     mime_type: mimeType,
     size_bytes: sizeBytes,
     duration_seconds: durationSeconds && durationSeconds > 0 ? Math.round(durationSeconds) : null,
+    envelope: safeEnvelope,
+    envelope_hz: 10,
     status: "approved",
     uploaded_by_kind: "staff",
   });

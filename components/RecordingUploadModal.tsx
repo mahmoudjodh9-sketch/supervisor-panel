@@ -27,6 +27,7 @@ const TXT = {
     saving: "جارٍ الحفظ...",
     upload: "رفع الريكورد",
     uploading: "جارٍ الرفع...",
+    analyzing: "جارٍ تحليل الصوت...",
     finalizing: "جارٍ الإنهاء...",
     corsHint:
       "فشل الرفع إلى R2. غالبًا إعداد CORS على الـBucket ناقص أو مش بيسمح بدومين اللوحة، راجع إعداد CORS في Cloudflare.",
@@ -49,6 +50,7 @@ const TXT = {
     saving: "Saving...",
     upload: "Upload recording",
     uploading: "Uploading...",
+    analyzing: "Analyzing audio...",
     finalizing: "Finishing...",
     corsHint:
       "Upload to R2 failed. The bucket's CORS setting is probably missing or doesn't allow this panel's domain. Check CORS in Cloudflare.",
@@ -80,6 +82,72 @@ const ERROR_EN: Record<string, string> = {
 
 const inputClass =
   "w-full rounded-lg bg-[var(--glass-highlight)] border border-[var(--glass-border)] px-3 py-2 text-sm outline-none focus:border-[var(--ice-300)] transition";
+
+/**
+ * بيحسب "علو الصوت" على طول الريكورد (قيمة 0..255 لكل 1/10 ثانية) عشان التطبيق يحرّك النيون.
+ * بيتعمل في المتصفح وقت الرفع. لو الملف كبير أو المتصفح مقدرش يفكّه بيرجّع null
+ * (الريكورد بيترفع عادي، بس النيون بيبقى نبض هادي بدل ما يتفاعل مع الصوت).
+ */
+const ENVELOPE_HZ = 10;
+const ENVELOPE_MAX_FILE_BYTES = 60 * 1024 * 1024;
+const ENVELOPE_MAX_POINTS = 120_000; // حوالي 3.3 ساعة
+
+async function computeEnvelope(file: File): Promise<string | null> {
+  if (file.size > ENVELOPE_MAX_FILE_BYTES) return null;
+  try {
+    const w = window as unknown as {
+      OfflineAudioContext?: typeof OfflineAudioContext;
+      webkitOfflineAudioContext?: typeof OfflineAudioContext;
+    };
+    const Ctx = w.OfflineAudioContext ?? w.webkitOfflineAudioContext;
+    if (!Ctx) return null;
+
+    // نفك الصوت بسرعة عينات واطية (8kHz) علشان الذاكرة، ومحتاجين بس مستوى الصوت
+    const ctx = new Ctx(1, 8000, 8000);
+    const audioBuffer = await ctx.decodeAudioData(await file.arrayBuffer());
+
+    const sampleRate = audioBuffer.sampleRate;
+    const win = Math.max(1, Math.floor(sampleRate / ENVELOPE_HZ));
+    const points = Math.ceil(audioBuffer.length / win);
+    if (points <= 0 || points > ENVELOPE_MAX_POINTS) return null;
+
+    const rms = new Float32Array(points);
+    const channels = audioBuffer.numberOfChannels;
+    for (let c = 0; c < channels; c++) {
+      const data = audioBuffer.getChannelData(c);
+      for (let i = 0; i < points; i++) {
+        const start = i * win;
+        const end = Math.min(start + win, data.length);
+        let sum = 0;
+        for (let j = start; j < end; j++) sum += data[j] * data[j];
+        rms[i] += sum / Math.max(1, end - start);
+      }
+    }
+    for (let i = 0; i < points; i++) rms[i] = Math.sqrt(rms[i] / channels);
+
+    // المرجع = المستوى رقم 95% علشان الصوت العادي يطلع نيون واضح، والصمت يفضل صفر
+    const sorted = Float32Array.from(rms).sort();
+    const reference = sorted[Math.min(points - 1, Math.floor(points * 0.95))];
+    if (!reference || reference < 1e-4) return null;
+
+    const bytes = new Uint8Array(points);
+    for (let i = 0; i < points; i++) {
+      let x = rms[i] / reference;
+      if (x < 0.04) x = 0; // صمت
+      x = Math.pow(Math.min(1, x), 0.7);
+      bytes[i] = Math.round(x * 255);
+    }
+
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+    }
+    return btoa(binary);
+  } catch {
+    return null;
+  }
+}
 
 function readDuration(file: File): Promise<number | null> {
   return new Promise((resolve) => {
@@ -123,7 +191,7 @@ export function RecordingUploadModal({
   const [title, setTitle] = useState(editing?.title ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<"idle" | "uploading" | "finalizing">("idle");
+  const [phase, setPhase] = useState<"idle" | "analyzing" | "uploading" | "finalizing">("idle");
   const [progress, setProgress] = useState(0);
   const [isPending, startTransition] = useTransition();
   const xhrRef = useRef<XMLHttpRequest | null>(null);
@@ -166,10 +234,17 @@ export function RecordingUploadModal({
       }
 
       const duration = await readDuration(file);
+
+      // تحليل علو الصوت للنيون (بيتعمل قبل الرفع، ولو فشل الرفع بيكمّل عادي)
+      setPhase("analyzing");
+      const envelope = await computeEnvelope(file);
+
+      setPhase("uploading");
+      setProgress(0);
       await putToR2(prep.uploadUrl, prep.contentType, file);
 
       setPhase("finalizing");
-      const res = await finalizeRecording(lectureId, title.trim(), prep.key, duration, lecturePath);
+      const res = await finalizeRecording(lectureId, title.trim(), prep.key, duration, envelope, lecturePath);
       if (res.error || !res.itemId) {
         setError(tr(res.error) ?? b.uploadError);
         setPhase("idle");
@@ -262,11 +337,15 @@ export function RecordingUploadModal({
               <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)]">
                 <div
                   className="h-full accent-gradient transition-all"
-                  style={{ width: `${phase === "finalizing" ? 100 : progress}%` }}
+                  style={{ width: `${phase === "finalizing" ? 100 : phase === "analyzing" ? 0 : progress}%` }}
                 />
               </div>
               <p className="text-[11px] text-[var(--text-muted)]">
-                {phase === "finalizing" ? b.finalizing : `${b.uploading} ${progress}%`}
+                {phase === "finalizing"
+                  ? b.finalizing
+                  : phase === "analyzing"
+                    ? b.analyzing
+                    : `${b.uploading} ${progress}%`}
               </p>
             </div>
           )}
